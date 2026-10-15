@@ -37,7 +37,10 @@ export function normalizeTrack(track: QobuzTrack, secret?: string): PublicTrack 
 export function streamResponse(stream: QobuzStream, requested: Quality): QobuzStream {
   if (!/^https:\/\//i.test(stream.url) || stream.encrypted === true) throw new Error('stream is not an openable HTTPS rendition');
   if (stream.manifest && !['none', 'hls', 'dash'].includes(stream.manifest)) throw new Error('unsupported manifest type');
-  return { ...stream, format: stream.format?.toLowerCase(), quality: stream.quality ?? requested };
+  // Qobuz's stream endpoint may omit "format" even when it returns a direct FLAC URL.
+  // Echo uses this field to choose the MIME type, so infer it from the requested rendition.
+  const format = stream.format?.toLowerCase() ?? (requested === 'LOSSLESS' ? 'flac' : 'mp3');
+  return { ...stream, format, quality: stream.quality ?? requested };
 }
 
 function sign(encoded: string, secret: string): string {
