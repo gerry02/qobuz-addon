@@ -16,13 +16,30 @@ export class QobuzDlProvider implements QobuzProvider {
   }
 
   async getStream(trackId: string, quality: Quality, _atmos: string): Promise<QobuzStream | null> {
-    const body = await this.request('/api/download-music', { track_id: trackId, quality: qualityId(quality) });
+    if (quality !== 'LOSSLESS') {
+      const url = await this.downloadUrl(trackId, '5');
+      if (!url) return null;
+      return { url, manifest: 'none', encrypted: false, format: 'mp3', quality: 'HIGH' };
+    }
+    // LOSSLESS requested (Echo default): use direct FLAC only when small enough
+    // for mobile, otherwise fallback to MP3. Threshold avoids the 100MB+ hi-res
+    // files that fail on 4G with ExoPlayer unexpected end of stream.
+    const flacUrl = await this.downloadUrl(trackId, '27');
+    if (!flacUrl) return null;
+    const size = await headContentLength(flacUrl, Math.min(this.config.requestTimeoutMs, 3000));
+    if (size !== undefined && size > flacMaxBytes()) {
+      const mp3Url = await this.downloadUrl(trackId, '5');
+      if (!mp3Url) return null;
+      return { url: mp3Url, manifest: 'none', encrypted: false, format: 'mp3', quality: 'HIGH' };
+    }
+    return { url: flacUrl, manifest: 'none', encrypted: false, format: 'flac', quality: 'LOSSLESS' };
+  }
+
+  private async downloadUrl(trackId: string, qualityIdValue: string): Promise<string | undefined> {
+    const body = await this.request('/api/download-music', { track_id: trackId, quality: qualityIdValue });
     const data = isRecord(body) && isRecord(body.data) ? body.data : undefined;
     const url = data && typeof data.url === 'string' ? data.url : undefined;
-    if (!url || !/^https:\/\//i.test(url)) return null;
-    // Forced to MP3 id 5 for mobile reliability: report truthful format/quality
-    // so streamResponse does not infer FLAC from the requested LOSSLESS.
-    return { url, manifest: 'none', encrypted: false, format: 'mp3', quality: 'HIGH' };
+    return url && /^https:\/\//i.test(url) ? url : undefined;
   }
 
   private async request(path: string, params: Record<string, string>): Promise<unknown> {
@@ -60,12 +77,29 @@ export class QobuzDlProvider implements QobuzProvider {
 function retryableStatus(status: number): boolean { return status === 408 || status === 425 || status === 429 || status >= 500; }
 function delay(ms: number): Promise<void> { return new Promise(resolve => setTimeout(resolve, ms)); }
 
-function qualityId(_quality: Quality): string {
-  // Echo 1.4.3 has no addon settings UI and always requests LOSSLESS.
-  // The LOSSLESS rendition (id 27) is ~133MB per track and fails on mobile
-  // with ExoPlayer IO_NETWORK_CONNECTION_FAILED / unexpected end of stream.
-  // Force MP3 (id 5, ~15MB) for reliable mobile playback.
+function qualityId(quality: Quality): string {
+  if (quality === 'LOSSLESS') return '27';
   return '5';
+}
+
+function flacMaxBytes(): number {
+  const raw = Number(process.env.FLAC_MAX_BYTES ?? 60 * 1024 * 1024);
+  return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 60 * 1024 * 1024;
+}
+
+async function headContentLength(url: string, timeoutMs: number): Promise<number | undefined> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { method: 'HEAD', signal: controller.signal });
+    if (!response.ok) return undefined;
+    const length = Number(response.headers.get('content-length'));
+    return Number.isFinite(length) && length >= 0 ? length : undefined;
+  } catch {
+    return undefined;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function toTrack(raw: JsonRecord): QobuzTrack | null {
