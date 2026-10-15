@@ -60,11 +60,11 @@ export class QobuzDlProvider implements QobuzProvider {
 function retryableStatus(status: number): boolean { return status === 408 || status === 425 || status === 429 || status >= 500; }
 function delay(ms: number): Promise<void> { return new Promise(resolve => setTimeout(resolve, ms)); }
 
-function qualityId(quality: Quality): string {
-  // IDs verified from the Qobuz-DL route schema: 27, 7, 6, and 5.
-  // Lossless uses the app default; HIGH/LOW use its MP3 rendition because
-  // this public endpoint exposes no separate low-bitrate contract.
-  if (quality === 'LOSSLESS') return '27';
+function qualityId(_quality: Quality): string {
+  // Echo 1.4.3 has no addon settings UI and always requests LOSSLESS.
+  // The LOSSLESS rendition (id 27) is ~133MB per track and fails on mobile
+  // with ExoPlayer IO_NETWORK_CONNECTION_FAILED / unexpected end of stream.
+  // Force MP3 (id 5, ~15MB) for reliable mobile playback.
   return '5';
 }
 
