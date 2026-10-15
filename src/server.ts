@@ -27,7 +27,7 @@ function registerAddon(prefix: string, provider: QobuzProvider, manifest: { id: 
 
   app.get(route('/manifest.json'), async (_request, reply) => reply.header('Cache-Control', 'public, max-age=3600, s-maxage=86400').send({
     ...manifest, resources: ['search', 'stream'], allowDownloads: 0,
-    settings: [{ key: 'quality', type: 'select', default: 'lossless', options: [
+    settings: [{ key: 'quality', type: 'select', default: 'high', options: [
       { label: 'Lossless', value: 'lossless' }, { label: 'High', value: 'high' }, { label: 'Low', value: 'low' },
     ] }],
   }));
@@ -74,7 +74,7 @@ app.setErrorHandler((error, _request, reply) => {
 });
 
 function parseQuality(value?: string): Quality {
-  const normalized = (value ?? 'LOSSLESS').toUpperCase();
+  const normalized = (value ?? 'HIGH').toUpperCase();
   if (normalized === 'LOSSLESS' || normalized === 'HIGH' || normalized === 'LOW') return normalized;
   throw badRequest('quality must be LOSSLESS, HIGH, or LOW');
 }
