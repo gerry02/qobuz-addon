@@ -20,9 +20,9 @@ export class QobuzDlProvider implements QobuzProvider {
     const data = isRecord(body) && isRecord(body.data) ? body.data : undefined;
     const url = data && typeof data.url === 'string' ? data.url : undefined;
     if (!url || !/^https:\/\//i.test(url)) return null;
-    // The upstream endpoint returns only a URL. Do not infer codec, bitrate,
-    // bit depth, Dolby, or encryption metadata that it did not provide.
-    return { url, manifest: 'none', encrypted: false };
+    // Forced to MP3 id 5 for mobile reliability: report truthful format/quality
+    // so streamResponse does not infer FLAC from the requested LOSSLESS.
+    return { url, manifest: 'none', encrypted: false, format: 'mp3', quality: 'HIGH' };
   }
 
   private async request(path: string, params: Record<string, string>): Promise<unknown> {
