@@ -62,7 +62,28 @@ function registerAddon(prefix: string, provider: QobuzProvider, manifest: { id: 
     if (!upstreamId) throw notFound('track not available');
     const stream = await provider.getStream(upstreamId, quality, atmos);
     if (!stream) throw notFound('track not available');
-    try { return reply.send(streamResponse(stream, quality)); } catch { throw notFound('track has no playable rendition'); }
+    try {
+      // Per-track signed URLs must never be cached by CDNs/proxies: a cached
+      // first-track response served for the second track looks exactly like the
+      // "same audio repeated" bug reported with Echo's queue.
+      return reply.header('Cache-Control', 'private, no-store').send(streamResponse(stream, quality));
+    } catch { throw notFound('track has no playable rendition'); }
+  });
+
+  // Legacy alias for older Echo clients calling GET /stream?id=<publicId>.
+  // Same validation/resolution as /stream/:id; kept to avoid 404 -> wrong fallback.
+  app.get<{ Querystring: { id?: string; quality?: string; atmos?: string } }>(route('/stream'), async (request, reply) => {
+    const quality = parseQuality(request.query.quality);
+    const atmos = request.query.atmos ?? 'auto';
+    const id = request.query.id?.trim() ?? '';
+    if (!/^qobuz_[A-Za-z0-9_-]{10,120}$/.test(id)) throw notFound('track not found');
+    const upstreamId = upstreamIdFromPublicId(id, config.idSecret);
+    if (!upstreamId) throw notFound('track not available');
+    const stream = await provider.getStream(upstreamId, quality, atmos);
+    if (!stream) throw notFound('track not available');
+    try {
+      return reply.header('Cache-Control', 'private, no-store').send(streamResponse(stream, quality));
+    } catch { throw notFound('track has no playable rendition'); }
   });
 }
 
