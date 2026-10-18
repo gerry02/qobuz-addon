@@ -6,8 +6,13 @@ A TypeScript/Node.js, playback-only BitChord addon exposing `/manifest.json`, `/
 
 The default `multi` provider races the configured compatible JSON backends and uses the first one that returns usable search results:
 
-- LastBabe: `https://lastbabe-addon.de.deplexo.com/search` and `/stream/:id`
-- Qobuz-DL fallback: `https://qobuz-dll.foreyou.workers.dev/api/get-music` and `/api/download-music`
+- Qobuz-DL: `https://qobuz-dll.foreyou.workers.dev/api/get-music` and `/api/download-music`
+- Optional backend: `https://arcod.xyz/api/search` and `/api/player/stream/:id`
+
+LastBabe (`https://lastbabe-addon.de.deplexo.com`) is **disabled by default**: its upstream is
+currently decommissioned and answers `404` on every route. Set `LASTBABE_BASE_URL` to add it back
+to the race. A backend that answers `404` is treated as gone and no longer fails the race, so one
+retired source cannot take the others down with it.
 
 The Qobuz-DL routes are:
 
@@ -48,7 +53,8 @@ The default configuration is:
 ```dotenv
 QOBUZ_PROVIDER=multi
 QOBUZ_UPSTREAM_BASE_URL=https://qobuz-dll.foreyou.workers.dev
-LASTBABE_BASE_URL=https://lastbabe-addon.de.deplexo.com
+OPTIONAL_BACKEND_BASE_URL=https://arcod.xyz
+# LASTBABE_BASE_URL is unset by default: that upstream is decommissioned.
 ```
 
 The base URL is configurable if the public service changes hostnames or you operate an authorized compatible deployment.

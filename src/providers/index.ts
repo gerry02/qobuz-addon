@@ -13,7 +13,7 @@ export function createProvider(config: Config): QobuzProvider {
   if (config.provider === 'qobuzdl') return new QobuzDlProvider(config);
   if (config.provider === 'multi') {
     const optional = config.optionalBaseUrl ? new OptionalJsonProvider(config) : undefined;
-    return createRacingProvider(new QobuzDlProvider(config), new LastBabeProvider(config), optional);
+    return createRacingProvider(new QobuzDlProvider(config), config.lastBabeBaseUrl ? new LastBabeProvider(config) : undefined, optional);
   }
   if (config.provider === 'http') return new HttpQobuzProvider(config);
   return new StubQobuzProvider();

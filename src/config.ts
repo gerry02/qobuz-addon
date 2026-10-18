@@ -39,7 +39,9 @@ export function loadConfig(): Config {
     searchPath: process.env.QOBUZ_SEARCH_PATH,
     streamPath: process.env.QOBUZ_STREAM_PATH,
     apiToken: process.env.QOBUZ_API_TOKEN,
-    lastBabeBaseUrl: process.env.LASTBABE_BASE_URL ?? 'https://lastbabe-addon.de.deplexo.com',
+    // LastBabe's upstream is currently decommissioned (404 on every route), so it
+    // is opt-in: set LASTBABE_BASE_URL to re-enable it as a racing source.
+    lastBabeBaseUrl: process.env.LASTBABE_BASE_URL,
     optionalBaseUrl: process.env.OPTIONAL_BACKEND_BASE_URL ?? 'https://arcod.xyz',
   };
 }
